@@ -65,22 +65,26 @@ public class SiteParser extends RecursiveAction {
             page.setCode(response.statusCode());
             page.setContent(response.body());
             Document doc = response.parse();
-            if (page.getCode() == 200) {
-                Elements links = doc.select(CSS_QUERY);
-                List<String> actualLinks = links.stream()
-                        .map(linkCode -> linkCode.absUrl("href"))
-                        .filter(link -> link.startsWith(page.getAbsPath()) && !link.equals(page.getAbsPath() + SCROLLUP_LINK))
-                        .distinct()
-                        .filter(link -> !isVisitedLink(link))
-                        .collect(Collectors.toList());
-                if (!actualLinks.isEmpty()) {
-                    page.setChildPages(actualLinks);
-                }
+            if (page.isPageResponseOK()) {
+                parsePageLinks(doc);
             }
         } catch (Exception ex) {
             ex.printStackTrace();
         } finally {
             System.out.println(page.getCode() + " : " + page.getAbsPath());
+        }
+    }
+
+    private void parsePageLinks(Document doc) {
+        Elements links = doc.select(CSS_QUERY);
+        List<String> actualLinks = links.stream()
+                .map(linkCode -> linkCode.absUrl("href"))
+                .filter(link -> link.startsWith(page.getAbsPath()) && !link.equals(page.getAbsPath() + SCROLLUP_LINK))
+                .distinct()
+                .filter(link -> !isVisitedLink(link))
+                .collect(Collectors.toList());
+        if (!actualLinks.isEmpty()) {
+            page.setChildPages(actualLinks);
         }
     }
 

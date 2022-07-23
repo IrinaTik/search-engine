@@ -64,6 +64,10 @@ public class Page {
         }
     }
 
+    public boolean isPageResponseOK() {
+        return getCode() == 200;
+    }
+
     private String escapeEnd(String url) {
         return url.endsWith("/") ? url : url + "/";
     }

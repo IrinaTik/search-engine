@@ -13,7 +13,8 @@ public class Main {
         ForkJoinPool pool = new ForkJoinPool();
         pool.invoke(new SiteParser(new Page(ROOT_SITE)));
         SiteParser.siteMap.stream().map(page -> page.getCode() + " : " + page.getRelPath()).forEach(System.out::println);
-        System.out.println(SiteParser.siteMap.size());
+        System.out.println("Всего: " + SiteParser.siteMap.size());
+        System.out.println("Код 200: " + SiteParser.siteMap.stream().filter(Page::isPageResponseOK).count());
     }
 
 }
