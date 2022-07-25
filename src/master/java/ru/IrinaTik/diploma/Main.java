@@ -1,20 +1,24 @@
 package ru.IrinaTik.diploma;
 
-import ru.IrinaTik.diploma.entity.Page;
-import ru.IrinaTik.diploma.util.SiteParser;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import ru.IrinaTik.diploma.service.PageService;
 
-import java.util.concurrent.ForkJoinPool;
+@SpringBootApplication
+public class Main implements CommandLineRunner {
 
-public class Main {
-
-    private static final String ROOT_SITE = "http://radiomv.ru/";
+    @Autowired
+    private PageService pageService;
 
     public static void main(String[] args) {
-        ForkJoinPool pool = new ForkJoinPool();
-        pool.invoke(new SiteParser(new Page(ROOT_SITE)));
-        SiteParser.siteMap.stream().map(page -> page.getCode() + " : " + page.getRelPath()).forEach(System.out::println);
-        System.out.println("Всего: " + SiteParser.siteMap.size());
-        System.out.println("Код 200: " + SiteParser.siteMap.stream().filter(Page::isPageResponseOK).count());
+        SpringApplication.run(Main.class, args);
     }
 
+    @Override
+    public void run(String... args) {
+        pageService.getSiteMap();
+        System.exit(0);
+    }
 }

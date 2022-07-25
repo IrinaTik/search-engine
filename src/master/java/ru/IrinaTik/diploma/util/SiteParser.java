@@ -1,10 +1,10 @@
 package ru.IrinaTik.diploma.util;
 
 import org.jsoup.Connection;
+import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
-import ru.IrinaTik.diploma.dao.Impl.PageDAOImpl;
 import ru.IrinaTik.diploma.entity.Page;
 
 import java.util.ArrayList;
@@ -23,7 +23,6 @@ public class SiteParser extends RecursiveAction {
     public static List<Page> siteMap = Collections.synchronizedList(new ArrayList<>());
 
     private Page page;
-    private final PageDAOImpl pageDAO = new PageDAOImpl();
 
     public SiteParser(Page page) {
         this.page = page;
@@ -33,7 +32,6 @@ public class SiteParser extends RecursiveAction {
     protected void compute() {
         addPageToVisited(page);
         parse(page);
-        pageDAO.save(page);
         if (page.getChildPages() != null) {
             List<SiteParser> parsers = new ArrayList<>();
             for (Page childPage : page.getChildPages()) {
@@ -53,13 +51,12 @@ public class SiteParser extends RecursiveAction {
 
     public void parse(Page page) {
         try {
-            Thread.sleep((long) (Math.random() * (5000 - 1000) + 1000));
+            Thread.sleep((long) (Math.random() * (20000 - 5000) + 1000));
             Connection connection = Jsoup.connect(page.getAbsPath())
                     .userAgent(USER_AGENT)
                     .referrer(REFERRER)
                     .timeout(120000)
                     .maxBodySize(0)
-                    .ignoreHttpErrors(true)
                     .ignoreContentType(true);
             Connection.Response response = connection.execute();
             page.setCode(response.statusCode());
@@ -68,6 +65,8 @@ public class SiteParser extends RecursiveAction {
             if (page.isPageResponseOK()) {
                 parsePageLinks(doc);
             }
+        } catch (HttpStatusException ex) {
+            page.setCode(ex.getStatusCode());
         } catch (Exception ex) {
             ex.printStackTrace();
         } finally {
