@@ -5,9 +5,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 import javax.persistence.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import javax.persistence.Index;
+import java.util.*;
 
 @Getter
 @Setter
@@ -32,6 +31,9 @@ public class Page {
     @Column(nullable = false, columnDefinition = "MEDIUMTEXT")
     private String content;
 
+    @OneToMany(mappedBy = "page")
+    private Set<SearchIndex> indexSet;
+
     @Transient
     private List<Page> childPages;
 
@@ -47,6 +49,7 @@ public class Page {
 
     private void pageInit() {
         this.content = "";
+        this.setIndexSet(new HashSet<>());
     }
 
     private String setRelPath() {
@@ -89,7 +92,7 @@ public class Page {
     public String toString() {
         return "Page{" +
                 "id=" + id +
-                ", path='" + absPath + '\'' +
+                ", path='" + relPath + '\'' +
                 ", code='" + code + '\'' +
                 ", content='" + content + '\'' +
                 '}';
