@@ -51,6 +51,13 @@ public class LemmaService {
         return lemmaRepository.saveAndFlush(lemma);
     }
 
+    public Lemma createAndSave(String lemmaString) {
+        Lemma lemma = new Lemma();
+        lemma.setLemma(lemmaString);
+        lemma.setFrequency(1);
+        return save(lemma);
+    }
+
     public Map<String, Integer> getLemmasFromText(String text) {
         String[] words = getRussianWordsFromText(text);
         return Arrays.stream(words)
