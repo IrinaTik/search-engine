@@ -46,12 +46,12 @@ public class PageService {
     public void getSiteMap() {
         ForkJoinPool pool = new ForkJoinPool();
         pool.invoke(new SiteParser(new Page(ROOT_SITE)));
-        SiteParser.siteMap.stream().filter(Page::isPageResponseOK).forEach(this::save);
+        SiteParser.siteMap.stream().forEach(this::save);
         SiteParser.siteMap.stream().map(page -> "№" + page.getId() + " - код " + page.getCode() + ": " + page.getRelPath()).forEach(System.out::println);
         System.out.println("Всего: " + SiteParser.siteMap.size());
         System.out.println("Код 200: " + SiteParser.siteMap.stream().filter(Page::isPageResponseOK).count());
         fieldList = fieldService.getAll();
-        SiteParser.siteMap.forEach(this::getLemmasFromPage);
+        SiteParser.siteMap.stream().filter(Page::isPageResponseOK).forEach(this::getLemmasFromPage);
     }
 
     public void getLemmasFromPage(Page page) {
@@ -80,6 +80,7 @@ public class PageService {
                 lemma = lemmaService.createAndSave(entry.getKey());
             } else {
                 lemma.setFrequency(lemma.getFrequency() + 1);
+                lemmaService.save(lemma);
             }
             indexService.createAndSave(page, lemma, entry.getValue());
         }
