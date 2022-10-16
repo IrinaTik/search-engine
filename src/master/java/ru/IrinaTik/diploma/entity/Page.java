@@ -80,12 +80,12 @@ public class Page {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Page page = (Page) o;
-        return absPath.equals(page.absPath);
+        return id == page.id && code == page.code && Objects.equals(relPath, page.relPath) && Objects.equals(content, page.content);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(absPath);
+        return Objects.hash(id, relPath, code, content);
     }
 
     @Override
