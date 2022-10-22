@@ -75,12 +75,11 @@ public class LemmaService {
                 .collect(Collectors.toSet());
     }
 
-    public List<Lemma> getLemmasFromTextSortedByFrequencyPresentInRep(String text) {
+    public List<Lemma> getLemmasFromTextSortedByFrequencyPresentInRep(String text, int frequencyLimit) {
         Set<String> lemmas = getStrLemmasFromText(text);
-        // TODO отфильтровать по проценту популярности леммы
         return lemmas.stream()
                 .map(this::getByLemma)
-                .filter(Objects::nonNull)
+                .filter(lemma -> lemma != null && lemma.getFrequency() <= frequencyLimit)
                 .sorted(Comparator.comparingInt(Lemma::getFrequency))
                 .collect(Collectors.toList());
     }

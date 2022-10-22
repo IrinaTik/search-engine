@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 public class PageService {
 
     private static final String ROOT_SITE = "http://www.playback.ru/";
+    private static final Double LEMMA_FREQUENCY_PERCENT = 0.9;
 
     private final PageRepository pageRepository;
     private final FieldService fieldService;
@@ -56,8 +57,13 @@ public class PageService {
         SiteParser.siteMap.stream().filter(Page::isPageResponseOK).forEach(this::getLemmasFromPage);
     }
 
+    public int getLemmaFrequencyLimit () {
+        long responsivePagesCount = getAll().stream().filter(Page::isPageResponseOK).count();
+        return (int) (responsivePagesCount * LEMMA_FREQUENCY_PERCENT);
+    }
+
     public List<SearchResponse> getSearchResult(String searchText) {
-        List<Lemma> lemmas = lemmaService.getLemmasFromTextSortedByFrequencyPresentInRep(searchText);
+        List<Lemma> lemmas = lemmaService.getLemmasFromTextSortedByFrequencyPresentInRep(searchText, getLemmaFrequencyLimit());
         if (lemmas.isEmpty()) {
             return Collections.emptyList();
         }
