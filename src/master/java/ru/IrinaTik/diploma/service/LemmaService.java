@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 public class LemmaService {
 
     private static final String[] PARTICLES_NAMES = new String[]{"МЕЖД", "ПРЕДЛ", "СОЮЗ", "МС"};
-    private static final int SNIPPET_CHARS_NUMBER = 5;
+    private static final int SNIPPET_CHARS_NUMBER = 1;
     private static final String SNIPPET_DELIMITER = "... ";
 
     private static LuceneMorphology luceneMorph;
@@ -87,33 +87,34 @@ public class LemmaService {
     public String createSnippet(String text, List<Lemma> lemmas) {
         String[] parsedText = text.replaceAll("[\\s]{2,}", " ").split(" ");
         StringBuilder snippet = new StringBuilder();
-        int startPos = -1;
-        int endPos = -1;
-        boolean isLemma = false;
+        int lastLemmaPos = -1;
         for (int i = 0; i < parsedText.length; i++) {
             for (Lemma lemma : lemmas) {
-                isLemma = false;
                 if (lemma.getLemma().equals(getLemmaFromWordIfPossible(parsedText[i]))) {
-                    isLemma = true;
-                    // следующая лемма за пределами предыдущего сниппета
-                    if (i > endPos) {
-                        startPos = calculateSnippetStartPos(i, endPos, snippet);
-                        for (int snippetIterator = startPos; snippetIterator < endPos; snippetIterator++) {
-                            snippet.append(parsedText[snippetIterator]).append(" ");
-                        }
-                    }
-                    snippet.append("<b>").append(parsedText[i]).append("</b>").append(" ");
-                    endPos = calculateSnippetEndPos(i, parsedText.length);
+                    snippet.append(createSnippetPart(parsedText, lastLemmaPos, i));
+                    lastLemmaPos = i;
                     break;
                 }
             }
-            if (startPos != endPos) {
-                if ((i <= endPos) && (!isLemma)) {
-                    snippet.append(parsedText[i]).append(" ");
-                }
+            if ((i == parsedText.length - 1) && (lastLemmaPos == i - 1)) {
+                snippet.append(parsedText[i]).append(" ");
+            }
+            if ((i - 2 == lastLemmaPos) && (i >= 2)) {
+                snippet.append(parsedText[i - 1]).append(" ");
             }
         }
         return snippet.append(SNIPPET_DELIMITER).toString();
+    }
+
+    private String createSnippetPart(String[] parsedText, int lastLemmaPos, int currentPos) {
+        String snippetPart = "";
+        if (currentPos - lastLemmaPos > 2) {
+            snippetPart = snippetPart.concat(SNIPPET_DELIMITER);
+        }
+        if (currentPos - lastLemmaPos >= 2) {
+            snippetPart = snippetPart.concat(parsedText[currentPos - 1]).concat(" ");
+        }
+        return snippetPart.concat("<b>").concat(parsedText[currentPos]).concat("</b>").concat(" ");
     }
 
     private String getLemmaFromWordIfPossible(String word) {
@@ -152,29 +153,6 @@ public class LemmaService {
         return text.toLowerCase(Locale.ROOT)
                 .replaceAll("([^а-я\\s])", " ")
                 .split("\\s+");
-    }
-
-    private int calculateSnippetStartPos(int currentPos, int endPos, StringBuilder snippet) {
-        int startPos;
-        if (currentPos < SNIPPET_CHARS_NUMBER) {
-            startPos = -1;
-        } else {
-            startPos = currentPos - SNIPPET_CHARS_NUMBER;
-        }
-        // границы предыдущего и нового сниппетов пересекаются - не надо делать разрыв
-        if (startPos <= endPos) {
-            startPos = endPos + 1;
-        } else {
-            snippet.append(SNIPPET_DELIMITER);
-        }
-        return startPos;
-    }
-
-    private int calculateSnippetEndPos(int currentPos, int textLength) {
-        if (currentPos > textLength - SNIPPET_CHARS_NUMBER) {
-            return textLength - 1;
-        }
-        return currentPos + SNIPPET_CHARS_NUMBER;
     }
 
 }
