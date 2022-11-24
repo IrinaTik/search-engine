@@ -37,6 +37,10 @@ public class Page {
     @Transient
     private List<Page> childPages;
 
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.MERGE)
+    @JoinColumn(name = "site_id", nullable = false)
+    private Site site;
+
     public Page() {
         pageInit();
     }
@@ -60,10 +64,16 @@ public class Page {
         return rel.substring(rel.indexOf("/"));
     }
 
+    public void setAbsPath(String absPath) {
+        this.absPath = absPath;
+        this.relPath = setRelPath();
+    }
+
     public void setChildPages(List<String> childLinks) {
         this.childPages = new ArrayList<>();
         for (String link : childLinks) {
-            childPages.add(new Page(link));
+            Page child = new Page(link);
+            childPages.add(child);
         }
     }
 
@@ -80,12 +90,12 @@ public class Page {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Page page = (Page) o;
-        return id == page.id && code == page.code && Objects.equals(relPath, page.relPath) && Objects.equals(content, page.content);
+        return code == page.code && Objects.equals(relPath, page.relPath) && Objects.equals(absPath, page.absPath) && Objects.equals(content, page.content) && Objects.equals(site, page.site);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, relPath, code, content);
+        return Objects.hash(relPath, absPath, code, content, site);
     }
 
     @Override

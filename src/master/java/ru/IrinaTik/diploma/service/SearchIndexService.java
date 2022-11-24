@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.IrinaTik.diploma.entity.Lemma;
 import ru.IrinaTik.diploma.entity.Page;
 import ru.IrinaTik.diploma.entity.SearchIndex;
+import ru.IrinaTik.diploma.entity.Site;
 import ru.IrinaTik.diploma.repository.SearchIndexRepository;
 
 import java.util.List;
@@ -36,6 +37,14 @@ public class SearchIndexService {
         index.setLemma(lemma);
         index.setRank(rank);
         return save(index);
+    }
+
+    public void deleteBySite(Site site) {
+        indexRepository.deleteBySiteUrl(site.getUrl());
+    }
+
+    public void deleteAll() {
+        indexRepository.deleteAll();
     }
 
 }

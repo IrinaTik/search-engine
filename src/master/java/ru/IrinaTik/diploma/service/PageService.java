@@ -7,16 +7,11 @@ import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.IrinaTik.diploma.entity.Field;
-import ru.IrinaTik.diploma.entity.Lemma;
-import ru.IrinaTik.diploma.entity.Page;
-import ru.IrinaTik.diploma.entity.SearchIndex;
+import ru.IrinaTik.diploma.entity.*;
 import ru.IrinaTik.diploma.repository.PageRepository;
 import ru.IrinaTik.diploma.response.SearchResponse;
-import ru.IrinaTik.diploma.util.SiteParser;
 
 import java.util.*;
-import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
 
 @Service
@@ -28,11 +23,8 @@ public class PageService {
     private static final Double LEMMA_FREQUENCY_PERCENT = 0.9;
 
     private final PageRepository pageRepository;
-    private final FieldService fieldService;
     private final LemmaService lemmaService;
     private final SearchIndexService indexService;
-
-    private List<Field> fieldList;
 
     public List<Page> getAll() {
         return pageRepository.findAll();
@@ -46,15 +38,20 @@ public class PageService {
         return pageRepository.saveAndFlush(page);
     }
 
-    public void getSiteMap() {
-        ForkJoinPool pool = new ForkJoinPool();
-        pool.invoke(new SiteParser(new Page(ROOT_SITE)));
-        SiteParser.siteMap.stream().forEach(this::save);
-        SiteParser.siteMap.stream().map(page -> "№" + page.getId() + " - код " + page.getCode() + ": " + page.getRelPath()).forEach(System.out::println);
-        System.out.println("Всего: " + SiteParser.siteMap.size());
-        System.out.println("Код 200: " + SiteParser.siteMap.stream().filter(Page::isPageResponseOK).count());
-        fieldList = fieldService.getAll();
-        SiteParser.siteMap.stream().filter(Page::isPageResponseOK).forEach(this::getLemmasFromPage);
+    public List<Page> getBySite(Site site) {
+        List<Page> sitePages = pageRepository.getBySite(site);
+        if (sitePages == null) {
+            return new ArrayList<>();
+        }
+        return sitePages;
+    }
+
+    public void deleteBySite(Site site) {
+        pageRepository.deleteBySite(site);
+    }
+
+    public void deleteAll() {
+        pageRepository.deleteAll();
     }
 
     public int getLemmaFrequencyLimit () {
@@ -122,8 +119,7 @@ public class PageService {
         return pages.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue() / maxAbsRelevance));
     }
 
-    private void getLemmasFromPage(Page page) {
-        // работа с одной страницей
+    public void getLemmasFromPage(Page page, List<Field> fieldList) {
         Map<String, Float> uniquePageLemmasWithRank = new HashMap<>();
         Document doc = Jsoup.parse(page.getContent());
         for (Field field : fieldList) {

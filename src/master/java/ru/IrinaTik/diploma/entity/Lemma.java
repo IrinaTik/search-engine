@@ -27,6 +27,10 @@ public class Lemma {
     @OneToMany(mappedBy = "lemma")
     private Set<SearchIndex> indexSet;
 
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.MERGE)
+    @JoinColumn(name = "site_id", nullable = false)
+    private Site site;
+
     public Lemma() {
         lemmaInit();
     }
@@ -44,12 +48,12 @@ public class Lemma {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Lemma lemma1 = (Lemma) o;
-        return Objects.equals(lemma, lemma1.lemma);
+        return Objects.equals(lemma, lemma1.lemma) && Objects.equals(site, lemma1.site);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(lemma);
+        return Objects.hash(lemma, site);
     }
 
     @Override

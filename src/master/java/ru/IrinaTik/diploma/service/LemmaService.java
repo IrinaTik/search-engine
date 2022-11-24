@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.IrinaTik.diploma.entity.Lemma;
+import ru.IrinaTik.diploma.entity.Site;
 import ru.IrinaTik.diploma.repository.LemmaRepository;
 
 import java.io.IOException;
@@ -19,7 +20,6 @@ import java.util.stream.Collectors;
 public class LemmaService {
 
     private static final String[] PARTICLES_NAMES = new String[]{"МЕЖД", "ПРЕДЛ", "СОЮЗ", "МС"};
-    private static final int SNIPPET_CHARS_NUMBER = 1;
     private static final String SNIPPET_DELIMITER = "... ";
 
     private static LuceneMorphology luceneMorph;
@@ -43,7 +43,23 @@ public class LemmaService {
     }
 
     public Lemma getByLemma(String lemma) {
-        return lemmaRepository.findByLemma(lemma);
+        return lemmaRepository.findByLemma(lemma).orElse(null);
+    }
+
+    public List<Lemma> getBySite(Site site) {
+        List<Lemma> lemmas = lemmaRepository.findBySite(site);
+        if (lemmas == null) {
+            return new ArrayList<>();
+        }
+        return lemmas;
+    }
+
+    public void deleteBySite(Site site) {
+        lemmaRepository.deleteBySite(site);
+    }
+
+    public void deleteAll() {
+        lemmaRepository.deleteAll();
     }
 
     public Lemma save(Lemma lemma) {

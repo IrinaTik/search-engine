@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.IrinaTik.diploma.config.SiteList;
+import ru.IrinaTik.diploma.entity.Page;
 import ru.IrinaTik.diploma.entity.Site;
 import ru.IrinaTik.diploma.entity.SiteIndexingStatus;
 import ru.IrinaTik.diploma.repository.SiteRepository;
@@ -19,6 +20,10 @@ import java.util.List;
 public class SiteService {
 
     private final SiteRepository siteRepository;
+
+    private final PageService pageService;
+    private final SearchIndexService indexService;
+    private final LemmaService lemmaService;
 
     private final SiteList siteList;
 
@@ -56,14 +61,11 @@ public class SiteService {
             site = new Site();
             site.setUrl(url);
             site.setName(name);
-            site.setStatus(SiteIndexingStatus.INDEXING);
-            site.setStatusTime(System.currentTimeMillis());
-            return save(site);
         }
-        return site;
+        return setSiteStatusAndSave(site, SiteIndexingStatus.INDEXING, "");
     }
 
-    public void setSiteStatusAndSave(Site site, SiteIndexingStatus status, String error) {
+    public Site setSiteStatusAndSave(Site site, SiteIndexingStatus status, String error) {
         site.setStatus(status);
         site.setLastError(error);
         site.setStatusTime(System.currentTimeMillis());
