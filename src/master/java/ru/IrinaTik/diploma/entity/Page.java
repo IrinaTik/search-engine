@@ -90,12 +90,12 @@ public class Page {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Page page = (Page) o;
-        return code == page.code && Objects.equals(relPath, page.relPath) && Objects.equals(absPath, page.absPath) && Objects.equals(content, page.content) && Objects.equals(site, page.site);
+        return Objects.equals(relPath, page.relPath) && Objects.equals(site, page.site);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(relPath, absPath, code, content, site);
+        return Objects.hash(relPath, site);
     }
 
     @Override

@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.IrinaTik.diploma.config.SiteList;
+import ru.IrinaTik.diploma.entity.Field;
 import ru.IrinaTik.diploma.entity.Page;
 import ru.IrinaTik.diploma.entity.Site;
 import ru.IrinaTik.diploma.entity.SiteIndexingStatus;
@@ -69,7 +70,21 @@ public class SiteService {
         site.setStatus(status);
         site.setLastError(error);
         site.setStatusTime(System.currentTimeMillis());
-        save(site);
+        return save(site);
+    }
+
+    public void deleteAllInfoRelatedToSite(Site site) {
+        // TODO: удаление всех данных, относящихся к сайту, из таблиц site, pages, lemma, search_index
+        indexService.deleteBySite(site);
+        lemmaService.deleteBySite(site);
+        pageService.deleteBySite(site);
+    }
+
+    public void createPageWithLemmasAndIndexes(List<Field> fieldList, Page page) {
+        System.out.println("Saving page : " + page.getRelPath() + " : " + page.getSite().getUrl());
+        pageService.save(page);
+        System.out.println("Getting lemmas from page : " + page.getRelPath());
+        pageService.getLemmasFromPage(page, fieldList);
     }
 
 }

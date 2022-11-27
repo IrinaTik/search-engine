@@ -40,7 +40,7 @@ public class SearchIndexService {
     }
 
     public void deleteBySite(Site site) {
-        indexRepository.deleteBySiteUrl(site.getUrl());
+        indexRepository.deleteBySite(site);
     }
 
     public void deleteAll() {

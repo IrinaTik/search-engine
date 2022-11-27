@@ -1,11 +1,15 @@
 package ru.IrinaTik.diploma.util;
 
+import lombok.Setter;
 import org.jsoup.Connection;
 import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
+import ru.IrinaTik.diploma.entity.Field;
 import ru.IrinaTik.diploma.entity.Page;
+import ru.IrinaTik.diploma.entity.Site;
+import ru.IrinaTik.diploma.service.SiteService;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -21,21 +25,32 @@ public class SiteParser extends RecursiveAction {
     private static final String REFERRER = "https://www.google.com";
 
     public static List<Page> siteMap = Collections.synchronizedList(new ArrayList<>());
+    @Setter
+    private static List<Field> fieldList;
+    private final SiteService siteService;
 
-    private Page page;
+    private final Site site;
+    private final Page page;
 
-    public SiteParser(Page page) {
+    public SiteParser(Page page, Site site, SiteService siteService) {
         this.page = page;
+        this.site = site;
+        page.setSite(site);
+        this.siteService = siteService;
     }
 
     @Override
     protected void compute() {
-        addPageToVisited(page);
-        parse(page);
+        // TODO: сюда проверка на isCancelled
+        addPageToVisited();
+        parse();
+//        System.out.println("Going to siteService for page : " + page.getRelPath() + " , site : " + page.getSite().getUrl());
+        siteService.createPageWithLemmasAndIndexes(fieldList, page);
         if (page.getChildPages() != null) {
+            // TODO: сюда проверка на isCancelled
             List<SiteParser> parsers = new ArrayList<>();
             for (Page childPage : page.getChildPages()) {
-                SiteParser parser = new SiteParser(childPage);
+                SiteParser parser = new SiteParser(childPage, site, siteService);
                 parser.fork();
                 parsers.add(parser);
             }
@@ -45,11 +60,11 @@ public class SiteParser extends RecursiveAction {
         }
     }
 
-    private void addPageToVisited(Page page) {
+    private void addPageToVisited() {
         siteMap.add(page);
     }
 
-    public void parse(Page page) {
+    public void parse() {
         try {
             Thread.sleep((long) (Math.random() * (20000 - 5000) + 1000));
             Connection connection = Jsoup.connect(page.getAbsPath())
@@ -69,6 +84,8 @@ public class SiteParser extends RecursiveAction {
             page.setCode(ex.getStatusCode());
         } catch (Exception ex) {
             ex.printStackTrace();
+            System.out.println("Ошибка при парсинге страницы " + page.getRelPath() + " : " + ex.getMessage());
+            siteService.setPageParsingError("Ошибка при парсинге страницы " + page.getRelPath() + " : " + ex.getMessage());
         } finally {
             System.out.println(page.getCode() + " : " + page.getAbsPath());
         }
@@ -89,6 +106,12 @@ public class SiteParser extends RecursiveAction {
 
     public boolean isVisitedLink(String link) {
         return siteMap.stream().anyMatch(page -> page.getAbsPath().equals(link));
+    }
+
+    public static void clearSiteMap() {
+        if (!siteMap.isEmpty()) {
+            siteMap.clear();
+        }
     }
 
 }

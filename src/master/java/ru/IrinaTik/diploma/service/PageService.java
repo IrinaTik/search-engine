@@ -59,8 +59,8 @@ public class PageService {
         return (int) (responsivePagesCount * LEMMA_FREQUENCY_PERCENT);
     }
 
-    public List<SearchResponse> getSearchResult(String searchText) {
-        List<Lemma> lemmas = lemmaService.getLemmasFromTextSortedByFrequencyPresentInRep(searchText, getLemmaFrequencyLimit());
+    public List<SearchResponse> getSearchResult(String searchText, Site site) {
+        List<Lemma> lemmas = lemmaService.getLemmasFromTextSortedByFrequencyPresentInRep(searchText, getLemmaFrequencyLimit(), site);
         if (lemmas.isEmpty()) {
             return Collections.emptyList();
         }
@@ -137,16 +137,17 @@ public class PageService {
         saveLemmaAndIndex(uniquePageLemmasWithRank, page);
     }
 
-    private void saveLemmaAndIndex(Map<String, Float> uniquePageLemmasWithRank, Page page) {
+    private synchronized void saveLemmaAndIndex(Map<String, Float> uniquePageLemmasWithRank, Page page) {
         for (Map.Entry<String, Float> entry : uniquePageLemmasWithRank.entrySet()) {
-            Lemma lemma = lemmaService.getByLemma(entry.getKey());
+            Lemma lemma = lemmaService.getByLemmaAndSite(entry.getKey(), page.getSite());
             if (lemma == null) {
-                lemma = lemmaService.createAndSave(entry.getKey());
+                lemma = lemmaService.createNew(entry.getKey(), page.getSite());
             } else {
                 lemma.setFrequency(lemma.getFrequency() + 1);
-                lemmaService.save(lemma);
             }
-            indexService.createAndSave(page, lemma, entry.getValue());
+//            System.out.println("Сохраняю лемму " + lemma + " сайта " + lemma.getSite().getId() + " в потоке " + Thread.currentThread().getName());
+            lemmaService.save(lemma);
+//            indexService.createAndSave(page, lemma, entry.getValue());
         }
     }
 

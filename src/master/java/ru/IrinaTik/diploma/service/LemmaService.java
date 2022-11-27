@@ -42,8 +42,8 @@ public class LemmaService {
         return lemmaRepository.findById(id).orElse(null);
     }
 
-    public Lemma getByLemma(String lemma) {
-        return lemmaRepository.findByLemma(lemma).orElse(null);
+    public Lemma getByLemmaAndSite(String lemma, Site site) {
+        return lemmaRepository.findByLemmaAndSite(lemma, site.getId()).orElse(null);
     }
 
     public List<Lemma> getBySite(Site site) {
@@ -66,11 +66,12 @@ public class LemmaService {
         return lemmaRepository.saveAndFlush(lemma);
     }
 
-    public Lemma createAndSave(String lemmaString) {
+    public Lemma createNew(String lemmaString, Site site) {
         Lemma lemma = new Lemma();
         lemma.setLemma(lemmaString);
         lemma.setFrequency(1);
-        return save(lemma);
+        lemma.setSite(site);
+        return lemma;
     }
 
     public Map<String, Integer> getStrLemmasFromTextWithCount(String text) {
@@ -91,10 +92,10 @@ public class LemmaService {
                 .collect(Collectors.toSet());
     }
 
-    public List<Lemma> getLemmasFromTextSortedByFrequencyPresentInRep(String text, int frequencyLimit) {
+    public List<Lemma> getLemmasFromTextSortedByFrequencyPresentInRep(String text, int frequencyLimit, Site site) {
         Set<String> lemmas = getStrLemmasFromText(text);
         return lemmas.stream()
-                .map(this::getByLemma)
+                .map(lemma -> getByLemmaAndSite(lemma, site))
                 .filter(lemma -> lemma != null && lemma.getFrequency() <= frequencyLimit)
                 .sorted(Comparator.comparingInt(Lemma::getFrequency))
                 .collect(Collectors.toList());

@@ -2,6 +2,7 @@ package ru.IrinaTik.diploma.entity;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.SQLInsert;
 
 import javax.persistence.*;
 import java.util.HashSet;
@@ -11,7 +12,8 @@ import java.util.Set;
 @Getter
 @Setter
 @Entity
-@Table(name = "lemma")
+@Table(name = "lemma", uniqueConstraints = { @UniqueConstraint(columnNames = { "lemma", "site_id" }) })
+//@SQLInsert(sql = "INSERT INTO lemma (id, lemma, frequency, site_id) VALUES (?,?,?,?) AS new(i,l,f,s) ON DUPLICATE KEY UPDATE 'frequency' = 'frequency' + new.f, id = LAST_INSERT_ID(id)")
 public class Lemma {
 
     @Id
@@ -28,7 +30,7 @@ public class Lemma {
     private Set<SearchIndex> indexSet;
 
     @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.MERGE)
-    @JoinColumn(name = "site_id", nullable = false)
+    @JoinColumn(name = "site_id", referencedColumnName = "id", nullable = false)
     private Site site;
 
     public Lemma() {

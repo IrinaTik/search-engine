@@ -50,12 +50,12 @@ public class Site {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Site site = (Site) o;
-        return url.equals(site.url) && name.equals(site.name);
+        return Objects.equals(url, site.url);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(url, name);
+        return Objects.hash(url);
     }
 
     @Override
