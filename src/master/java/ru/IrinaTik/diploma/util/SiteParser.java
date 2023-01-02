@@ -1,19 +1,17 @@
 package ru.IrinaTik.diploma.util;
 
+import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.Setter;
 import org.jsoup.Connection;
 import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
-import ru.IrinaTik.diploma.entity.Field;
 import ru.IrinaTik.diploma.entity.Page;
 import ru.IrinaTik.diploma.entity.Site;
-import ru.IrinaTik.diploma.service.SiteService;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.RecursiveAction;
 import java.util.stream.Collectors;
 
@@ -24,33 +22,47 @@ public class SiteParser extends RecursiveAction {
     private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36";
     private static final String REFERRER = "https://www.google.com";
 
-    public static List<Page> siteMap = Collections.synchronizedList(new ArrayList<>());
-    @Setter
-    private static List<Field> fieldList;
-    private final SiteService siteService;
+//    public static List<Page> siteMap = Collections.synchronizedList(new ArrayList<>());
+    @Setter(AccessLevel.PRIVATE)
+    private static boolean isCancelled;
 
     private final Site site;
     private final Page page;
+    private String error;
+    @Getter
+    private final Set<Page> siteMap;
 
-    public SiteParser(Page page, Site site, SiteService siteService) {
+    public SiteParser(Page page, Site site, String error) {
         this.page = page;
         this.site = site;
         page.setSite(site);
-        this.siteService = siteService;
+        this.error = error;
+        this.siteMap = Collections.synchronizedSet(new HashSet<>());
+        setCancelled(false);
+    }
+
+    private SiteParser(Page page, Site site, String error, Set<Page> siteMap) {
+        this.page = page;
+        this.site = site;
+        page.setSite(site);
+        this.error = error;
+        this.siteMap = siteMap;
     }
 
     @Override
     protected void compute() {
-        // TODO: сюда проверка на isCancelled
+        if (isCancelled) {
+            return;
+        }
         addPageToVisited();
         parse();
-//        System.out.println("Going to siteService for page : " + page.getRelPath() + " , site : " + page.getSite().getUrl());
-        siteService.createPageWithLemmasAndIndexes(fieldList, page);
         if (page.getChildPages() != null) {
-            // TODO: сюда проверка на isCancelled
             List<SiteParser> parsers = new ArrayList<>();
             for (Page childPage : page.getChildPages()) {
-                SiteParser parser = new SiteParser(childPage, site, siteService);
+                if (isCancelled) {
+                    return;
+                }
+                SiteParser parser = new SiteParser(childPage, site, error, siteMap);
                 parser.fork();
                 parsers.add(parser);
             }
@@ -66,6 +78,7 @@ public class SiteParser extends RecursiveAction {
 
     public void parse() {
         try {
+            System.out.println("Page : " + page.getRelPath() + " , site : " + page.getSite().getUrl());
             Thread.sleep((long) (Math.random() * (20000 - 5000) + 1000));
             Connection connection = Jsoup.connect(page.getAbsPath())
                     .userAgent(USER_AGENT)
@@ -85,7 +98,7 @@ public class SiteParser extends RecursiveAction {
         } catch (Exception ex) {
             ex.printStackTrace();
             System.out.println("Ошибка при парсинге страницы " + page.getRelPath() + " : " + ex.getMessage());
-            siteService.setPageParsingError("Ошибка при парсинге страницы " + page.getRelPath() + " : " + ex.getMessage());
+            error = "Ошибка при парсинге страницы " + page.getRelPath() + " : " + ex.getMessage();
         } finally {
             System.out.println(page.getCode() + " : " + page.getAbsPath());
         }
@@ -108,10 +121,14 @@ public class SiteParser extends RecursiveAction {
         return siteMap.stream().anyMatch(page -> page.getAbsPath().equals(link));
     }
 
-    public static void clearSiteMap() {
-        if (!siteMap.isEmpty()) {
-            siteMap.clear();
-        }
+    public static void stopParsing() {
+        setCancelled(true);
     }
+
+//    public static void clearSiteMap() {
+//        if (!siteMap.isEmpty()) {
+//            siteMap.clear();
+//        }
+//    }
 
 }

@@ -10,6 +10,7 @@ import ru.IrinaTik.diploma.entity.SearchIndex;
 import ru.IrinaTik.diploma.entity.Site;
 import ru.IrinaTik.diploma.repository.SearchIndexRepository;
 
+import java.util.Collection;
 import java.util.List;
 
 @Service
@@ -31,11 +32,20 @@ public class SearchIndexService {
         return indexRepository.saveAndFlush(index);
     }
 
-    public SearchIndex createAndSave(Page page, Lemma lemma, Float rank) {
+    public List<SearchIndex> saveAll(Collection<SearchIndex> indexes) {
+        return indexRepository.saveAllAndFlush(indexes);
+    }
+
+    public SearchIndex createNew(Page page, Lemma lemma, Float rank) {
         SearchIndex index = new SearchIndex();
         index.setPage(page);
         index.setLemma(lemma);
         index.setRank(rank);
+        return index;
+    }
+
+    public SearchIndex createAndSave(Page page, Lemma lemma, Float rank) {
+        SearchIndex index = createNew(page, lemma, rank);
         return save(index);
     }
 

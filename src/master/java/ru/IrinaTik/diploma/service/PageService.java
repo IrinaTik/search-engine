@@ -38,6 +38,10 @@ public class PageService {
         return pageRepository.saveAndFlush(page);
     }
 
+    public List<Page> saveAll(Collection<Page> pages) {
+        return pageRepository.saveAllAndFlush(pages);
+    }
+
     public List<Page> getBySite(Site site) {
         List<Page> sitePages = pageRepository.getBySite(site);
         if (sitePages == null) {
@@ -54,7 +58,7 @@ public class PageService {
         pageRepository.deleteAll();
     }
 
-    public int getLemmaFrequencyLimit () {
+    public int getLemmaFrequencyLimit() {
         long responsivePagesCount = getAll().stream().filter(Page::isPageResponseOK).count();
         return (int) (responsivePagesCount * LEMMA_FREQUENCY_PERCENT);
     }
@@ -117,38 +121,6 @@ public class PageService {
 
     private Map<Page, Float> getPagesWithRelativeRelevance(Map<Page, Float> pages, Float maxAbsRelevance) {
         return pages.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue() / maxAbsRelevance));
-    }
-
-    public void getLemmasFromPage(Page page, List<Field> fieldList) {
-        Map<String, Float> uniquePageLemmasWithRank = new HashMap<>();
-        Document doc = Jsoup.parse(page.getContent());
-        for (Field field : fieldList) {
-            Elements elements = doc.select(field.getSelector());
-            String text = elements.text();
-            Map<String, Integer> fieldLemmas = lemmaService.getStrLemmasFromTextWithCount(text);
-            fieldLemmas.forEach((fieldLemma, count) -> {
-                if (uniquePageLemmasWithRank.containsKey(fieldLemma)) {
-                    uniquePageLemmasWithRank.put(fieldLemma, uniquePageLemmasWithRank.get(fieldLemma) + field.getWeight() * count);
-                } else {
-                    uniquePageLemmasWithRank.put(fieldLemma, field.getWeight() * count);
-                }
-            });
-        }
-        saveLemmaAndIndex(uniquePageLemmasWithRank, page);
-    }
-
-    private synchronized void saveLemmaAndIndex(Map<String, Float> uniquePageLemmasWithRank, Page page) {
-        for (Map.Entry<String, Float> entry : uniquePageLemmasWithRank.entrySet()) {
-            Lemma lemma = lemmaService.getByLemmaAndSite(entry.getKey(), page.getSite());
-            if (lemma == null) {
-                lemma = lemmaService.createNew(entry.getKey(), page.getSite());
-            } else {
-                lemma.setFrequency(lemma.getFrequency() + 1);
-            }
-//            System.out.println("Сохраняю лемму " + lemma + " сайта " + lemma.getSite().getId() + " в потоке " + Thread.currentThread().getName());
-            lemmaService.save(lemma);
-//            indexService.createAndSave(page, lemma, entry.getValue());
-        }
     }
 
 }

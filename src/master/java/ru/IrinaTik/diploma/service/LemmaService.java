@@ -66,6 +66,10 @@ public class LemmaService {
         return lemmaRepository.saveAndFlush(lemma);
     }
 
+    public List<Lemma> saveAll(Collection<Lemma> lemmas) {
+        return lemmaRepository.saveAllAndFlush(lemmas);
+    }
+
     public Lemma createNew(String lemmaString, Site site) {
         Lemma lemma = new Lemma();
         lemma.setLemma(lemmaString);

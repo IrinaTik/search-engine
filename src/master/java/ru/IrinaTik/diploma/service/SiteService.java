@@ -28,10 +28,6 @@ public class SiteService {
 
     private final SiteList siteList;
 
-    @Setter
-    @Getter
-    private volatile String pageParsingError;
-
     public List<Site> getSitesFromConfig() {
         return siteList.getSiteList();
     }
@@ -74,17 +70,11 @@ public class SiteService {
     }
 
     public void deleteAllInfoRelatedToSite(Site site) {
-        // TODO: удаление всех данных, относящихся к сайту, из таблиц site, pages, lemma, search_index
         indexService.deleteBySite(site);
         lemmaService.deleteBySite(site);
         pageService.deleteBySite(site);
     }
 
-    public void createPageWithLemmasAndIndexes(List<Field> fieldList, Page page) {
-        System.out.println("Saving page : " + page.getRelPath() + " : " + page.getSite().getUrl());
-        pageService.save(page);
-        System.out.println("Getting lemmas from page : " + page.getRelPath());
-        pageService.getLemmasFromPage(page, fieldList);
-    }
+
 
 }
