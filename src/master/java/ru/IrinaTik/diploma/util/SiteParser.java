@@ -22,7 +22,6 @@ public class SiteParser extends RecursiveAction {
     private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36";
     private static final String REFERRER = "https://www.google.com";
 
-//    public static List<Page> siteMap = Collections.synchronizedList(new ArrayList<>());
     @Setter(AccessLevel.PRIVATE)
     private static boolean isCancelled;
 
@@ -124,11 +123,5 @@ public class SiteParser extends RecursiveAction {
     public static void stopParsing() {
         setCancelled(true);
     }
-
-//    public static void clearSiteMap() {
-//        if (!siteMap.isEmpty()) {
-//            siteMap.clear();
-//        }
-//    }
 
 }

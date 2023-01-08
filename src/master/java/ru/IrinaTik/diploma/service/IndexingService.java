@@ -14,26 +14,23 @@ import ru.IrinaTik.diploma.response.IndexingResponse;
 import ru.IrinaTik.diploma.util.SiteParser;
 
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.Future;
 
 @Service
 @RequiredArgsConstructor(onConstructor = @__(@Autowired))
 public class IndexingService {
 
-    private static final String INDEXING_STOPPED_ERROR = "Индексация прервана пользователем";
+    private static final String INDEXING_STOPPED_BY_USER_ERROR = "Индексация прервана пользователем";
     private static final String INDEXING_ALREADY_STARTED_ERROR = "Индексация уже запущена";
     private static final String INDEXING_NOT_STARTED_ERROR = "Индексация не запущена";
     private static final String PAGE_NOT_LISTED_ERROR = "Данная страница находится за пределами сайтов, указанных в конфигурационном файле";
 
     @Setter(AccessLevel.PRIVATE)
     @Getter
-    private volatile boolean isCancelledStopIndexing = false;
-
-    @Setter(AccessLevel.PRIVATE)
-    @Getter
-    private volatile boolean isRunning = false;
-
-    // TODO: isRunning для вывода сообщения индексация идет \ остановлена \ окончена
+    private static volatile boolean isCancelledStopIndexing = false;
 
     @Setter
     @Getter
@@ -45,35 +42,38 @@ public class IndexingService {
     private final LemmaService lemmaService;
     private final SiteService siteService;
 
+    private List<Future<IndexingResponse>> responses;
+
     @Getter
     private List<Field> fieldList;
 
     public IndexingResponse indexingAllSites() {
-        // TODO: индексация всего. НЗ! Каждый сайт в своем потоке
-        if (isRunning) {
+        if (!isIndexingDone()) {
             return new IndexingResponse(false, INDEXING_ALREADY_STARTED_ERROR);
         }
-        setRunning(true);
         setCancelledStopIndexing(false);
         List<Site> sites = siteService.getSitesFromConfig();
-        // Сейчас тут заглушка для одного сайта из списка. TODO: for каждый сайт indexingOneSite.
-        IndexingResponse result = indexingOneSite(sites.get(2).getUrl(), sites.get(2).getName());
-        setRunning(false);
-        return result;
+        // каждый сайт должен быть в своем потоке
+        ExecutorService pool = Executors.newFixedThreadPool(sites.size());
+        responses = new ArrayList<>();
+        for (Site site : sites) {
+            responses.add(pool.submit(() -> indexingOneSite(site.getUrl(), site.getName())));
+        }
+        pool.shutdown();
+        return new IndexingResponse(true, "");
     }
 
     public IndexingResponse stopIndexing() {
-        if (isRunning) {
-            setCancelledStopIndexing(true);
-            setRunning(false);
-            SiteParser.stopParsing();
-            return new IndexingResponse(true, "");
+        if (isIndexingDone()) {
+            return new IndexingResponse(false, INDEXING_NOT_STARTED_ERROR);
         }
-        return new IndexingResponse(false, INDEXING_NOT_STARTED_ERROR);
+        setCancelledStopIndexing(true);
+        SiteParser.stopParsing();
+        return new IndexingResponse(true, "");
     }
 
-    private void initFieldsList() {
-        fieldList = fieldService.getAll();
+    public IndexingResponse indexingAddedSite(String url, String name) {
+        return null;
     }
 
     public IndexingResponse indexingOneSite(String url, String name) {
@@ -81,7 +81,7 @@ public class IndexingService {
         pageParsingError = "";
         Site site = siteService.getByUrlOrElseCreateAndSaveNew(url, name);
         if (isCancelledStopIndexing) {
-            return setResultAndSiteStatus(site, SiteIndexingStatus.FAILED, INDEXING_STOPPED_ERROR);
+            return setResultAndSiteStatus(site, SiteIndexingStatus.FAILED, INDEXING_STOPPED_BY_USER_ERROR);
         }
         return gatherSiteIndexingInfo(site);
     }
@@ -93,12 +93,12 @@ public class IndexingService {
             SiteParser parser = new SiteParser(new Page(site.getUrl()), site, pageParsingError);
             pool.invoke(parser);
             if (isCancelledStopIndexing) {
-                return setResultAndSiteStatus(site, SiteIndexingStatus.FAILED, INDEXING_STOPPED_ERROR);
+                return setResultAndSiteStatus(site, SiteIndexingStatus.FAILED, INDEXING_STOPPED_BY_USER_ERROR);
             }
             if (getPageParsingError().isEmpty()) {
                 createLemmasAndIndexesForSite(site, parser.getSiteMap());
                 if (isCancelledStopIndexing) {
-                    result = setResultAndSiteStatus(site, SiteIndexingStatus.FAILED, INDEXING_STOPPED_ERROR);
+                    result = setResultAndSiteStatus(site, SiteIndexingStatus.FAILED, INDEXING_STOPPED_BY_USER_ERROR);
                 } else {
                     result = setResultAndSiteStatus(site, SiteIndexingStatus.INDEXED, getPageParsingError());
                 }
@@ -110,7 +110,7 @@ public class IndexingService {
             System.out.println(result);
         } catch (Exception ex) {
             ex.printStackTrace();
-            result = setResultAndSiteStatus(site, SiteIndexingStatus.FAILED, "Ошибка индексации: сайт - " + site.getUrl() + System.lineSeparator() + ex.getMessage());
+            result = setResultAndSiteStatus(site, SiteIndexingStatus.FAILED, ex.getMessage());
         }
         return result;
     }
@@ -122,7 +122,7 @@ public class IndexingService {
             result.setResult(true);
         } else {
             result.setResult(false);
-            result.setError(error);
+            result.setError("Ошибка индексации: сайт - " + site.getUrl() + "\n" + error);
         }
         return result;
     }
@@ -150,10 +150,13 @@ public class IndexingService {
             }
         }
         if (!isCancelledStopIndexing) {
+            System.out.println("Deleting data for " + site.getUrl());
             siteService.deleteAllInfoRelatedToSite(site);
+            System.out.println("Saving data for " + site.getUrl());
             pageService.saveAll(siteMap);
             lemmaService.saveAll(siteLemmas.values());
             indexService.saveAll(siteIndexes);
+            System.out.println("Data saved for " + site.getUrl());
         }
     }
 
@@ -173,6 +176,14 @@ public class IndexingService {
             });
         }
         return uniquePageLemmasWithRank;
+    }
+
+    private boolean isIndexingDone() {
+        return responses == null || responses.stream().allMatch(Future::isDone);
+    }
+
+    private void initFieldsList() {
+        fieldList = fieldService.getAll();
     }
 
 }
