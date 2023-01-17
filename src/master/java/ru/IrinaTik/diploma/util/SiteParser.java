@@ -3,6 +3,7 @@ package ru.IrinaTik.diploma.util;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.log4j.Log4j2;
 import org.jsoup.Connection;
 import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
@@ -10,41 +11,42 @@ import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
 import ru.IrinaTik.diploma.entity.Page;
 import ru.IrinaTik.diploma.entity.Site;
+import ru.IrinaTik.diploma.service.IndexingService;
 
 import java.util.*;
 import java.util.concurrent.RecursiveAction;
 import java.util.stream.Collectors;
 
+@Log4j2
 public class SiteParser extends RecursiveAction {
 
     private static final String CSS_QUERY = "a[href]";
     private static final String SCROLLUP_LINK = "#";
-    private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36";
-    private static final String REFERRER = "https://www.google.com";
 
     @Setter(AccessLevel.PRIVATE)
     private static boolean isCancelled;
 
     private final Site site;
     private final Page page;
-    private String error;
+    private final IndexingService indexingService;
+
     @Getter
     private final Set<Page> siteMap;
 
-    public SiteParser(Page page, Site site, String error) {
+    public SiteParser(Page page, Site site, IndexingService service) {
         this.page = page;
         this.site = site;
         page.setSite(site);
-        this.error = error;
+        this.indexingService = service;
         this.siteMap = Collections.synchronizedSet(new HashSet<>());
         setCancelled(false);
     }
 
-    private SiteParser(Page page, Site site, String error, Set<Page> siteMap) {
+    private SiteParser(Page page, Site site, IndexingService service, Set<Page> siteMap) {
         this.page = page;
         this.site = site;
         page.setSite(site);
-        this.error = error;
+        this.indexingService = service;
         this.siteMap = siteMap;
     }
 
@@ -61,7 +63,7 @@ public class SiteParser extends RecursiveAction {
                 if (isCancelled) {
                     return;
                 }
-                SiteParser parser = new SiteParser(childPage, site, error, siteMap);
+                SiteParser parser = new SiteParser(childPage, site, indexingService, siteMap);
                 parser.fork();
                 parsers.add(parser);
             }
@@ -77,11 +79,11 @@ public class SiteParser extends RecursiveAction {
 
     public void parse() {
         try {
-            System.out.println("Page : " + page.getRelPath() + " , site : " + page.getSite().getUrl());
+            log.info("Parsing page {}, site -> {}", page.getRelPath(), page.getSite().getUrl());
             Thread.sleep((long) (Math.random() * (20000 - 5000) + 1000));
             Connection connection = Jsoup.connect(page.getAbsPath())
-                    .userAgent(USER_AGENT)
-                    .referrer(REFERRER)
+                    .userAgent(indexingService.getAppConfig().getUseragent())
+                    .referrer(indexingService.getAppConfig().getReferrer())
                     .timeout(120000)
                     .maxBodySize(0)
                     .ignoreContentType(true);
@@ -96,10 +98,10 @@ public class SiteParser extends RecursiveAction {
             page.setCode(ex.getStatusCode());
         } catch (Exception ex) {
             ex.printStackTrace();
-            System.out.println("Ошибка при парсинге страницы " + page.getRelPath() + " : " + ex.getMessage());
-            error = "Ошибка при парсинге страницы " + page.getRelPath() + " : " + ex.getMessage();
+            log.error("Error while parsing page {} -> {}", page.getRelPath(), ex.getMessage());
+            indexingService.setPageParsingError("Ошибка при парсинге страницы " + page.getRelPath() + " -> " + ex.getMessage());
         } finally {
-            System.out.println(page.getCode() + " : " + page.getAbsPath());
+            log.info("Parsing complete with code {} for page {}", page.getCode(), page.getAbsPath());
         }
     }
 

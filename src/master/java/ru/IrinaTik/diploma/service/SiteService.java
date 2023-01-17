@@ -1,14 +1,9 @@
 package ru.IrinaTik.diploma.service;
 
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import ru.IrinaTik.diploma.config.SiteList;
-import ru.IrinaTik.diploma.entity.Field;
-import ru.IrinaTik.diploma.entity.Page;
+import ru.IrinaTik.diploma.config.AppConfig;
 import ru.IrinaTik.diploma.entity.Site;
 import ru.IrinaTik.diploma.entity.SiteIndexingStatus;
 import ru.IrinaTik.diploma.repository.SiteRepository;
@@ -16,7 +11,6 @@ import ru.IrinaTik.diploma.repository.SiteRepository;
 import java.util.List;
 
 @Service
-@Transactional
 @RequiredArgsConstructor(onConstructor = @__(@Autowired))
 public class SiteService {
 
@@ -25,12 +19,6 @@ public class SiteService {
     private final PageService pageService;
     private final SearchIndexService indexService;
     private final LemmaService lemmaService;
-
-    private final SiteList siteList;
-
-    public List<Site> getSitesFromConfig() {
-        return siteList.getSiteList();
-    }
 
     public List<Site> getAll() {
         return siteRepository.findAll();

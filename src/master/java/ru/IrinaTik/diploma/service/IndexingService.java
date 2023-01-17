@@ -4,11 +4,14 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import lombok.extern.log4j.Log4j2;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import ru.IrinaTik.diploma.config.AppConfig;
 import ru.IrinaTik.diploma.entity.*;
 import ru.IrinaTik.diploma.response.IndexingResponse;
 import ru.IrinaTik.diploma.util.SiteParser;
@@ -17,8 +20,8 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.Future;
 
+@Log4j2
 @Service
 @RequiredArgsConstructor(onConstructor = @__(@Autowired))
 public class IndexingService {
@@ -42,7 +45,10 @@ public class IndexingService {
     private final LemmaService lemmaService;
     private final SiteService siteService;
 
-    private List<Future<IndexingResponse>> responses;
+    private ExecutorService executorThreadPool;
+
+    @Getter
+    private final AppConfig appConfig;
 
     @Getter
     private List<Field> fieldList;
@@ -52,14 +58,13 @@ public class IndexingService {
             return new IndexingResponse(false, INDEXING_ALREADY_STARTED_ERROR);
         }
         setCancelledStopIndexing(false);
-        List<Site> sites = siteService.getSitesFromConfig();
+        List<Site> sites = appConfig.getSiteList();
         // каждый сайт должен быть в своем потоке
-        ExecutorService pool = Executors.newFixedThreadPool(sites.size());
-        responses = new ArrayList<>();
+        executorThreadPool = Executors.newFixedThreadPool(sites.size());
         for (Site site : sites) {
-            responses.add(pool.submit(() -> indexingOneSite(site.getUrl(), site.getName())));
+            executorThreadPool.submit(() -> indexingOneSite(site.getUrl(), site.getName()));
         }
-        pool.shutdown();
+        executorThreadPool.shutdown();
         return new IndexingResponse(true, "");
     }
 
@@ -67,10 +72,13 @@ public class IndexingService {
         if (isIndexingDone()) {
             return new IndexingResponse(false, INDEXING_NOT_STARTED_ERROR);
         }
+        executorThreadPool.shutdownNow();
         setCancelledStopIndexing(true);
         SiteParser.stopParsing();
+        log.warn("Indexing was CANCELLED by user");
         return new IndexingResponse(true, "");
     }
+
 
     public IndexingResponse indexingAddedSite(String url, String name) {
         return null;
@@ -86,12 +94,13 @@ public class IndexingService {
         return gatherSiteIndexingInfo(site);
     }
 
+    @Transactional
     private IndexingResponse gatherSiteIndexingInfo(Site site) {
         IndexingResponse result;
         try {
-            ForkJoinPool pool = new ForkJoinPool();
-            SiteParser parser = new SiteParser(new Page(site.getUrl()), site, pageParsingError);
-            pool.invoke(parser);
+            ForkJoinPool forkJoinPool = new ForkJoinPool();
+            SiteParser parser = new SiteParser(new Page(site.getUrl()), site, this);
+            forkJoinPool.invoke(parser);
             if (isCancelledStopIndexing) {
                 return setResultAndSiteStatus(site, SiteIndexingStatus.FAILED, INDEXING_STOPPED_BY_USER_ERROR);
             }
@@ -131,7 +140,7 @@ public class IndexingService {
         Map<String, Lemma> siteLemmas = new HashMap<>();
         List<SearchIndex> siteIndexes = new ArrayList<>();
         for (Page page : siteMap) {
-            System.out.println("Getting lemmas and indexes for page " + page.getAbsPath());
+            log.info("Getting lemmas and indexes for page {}", page.getAbsPath());
             Map<String, Float> pageLemmasWithRank = getLemmasFromPage(page);
             for (Map.Entry<String, Float> entry : pageLemmasWithRank.entrySet()) {
                 if (isCancelledStopIndexing) {
@@ -150,13 +159,14 @@ public class IndexingService {
             }
         }
         if (!isCancelledStopIndexing) {
-            System.out.println("Deleting data for " + site.getUrl());
+            log.info("Deleting data for {}", site.getUrl());
             siteService.deleteAllInfoRelatedToSite(site);
-            System.out.println("Saving data for " + site.getUrl());
+            log.info("Saving data for {}", site.getUrl());
             pageService.saveAll(siteMap);
             lemmaService.saveAll(siteLemmas.values());
             indexService.saveAll(siteIndexes);
-            System.out.println("Data saved for " + site.getUrl());
+            log.info("Data saved for {} \n\t Pages -> {} \n\t Lemmas -> {} \n\t Indexes -> {}",
+                    site.getUrl(), siteMap.size(), siteLemmas.values().size(), siteIndexes.size());
         }
     }
 
@@ -179,7 +189,7 @@ public class IndexingService {
     }
 
     private boolean isIndexingDone() {
-        return responses == null || responses.stream().allMatch(Future::isDone);
+        return executorThreadPool == null || executorThreadPool.isTerminated();
     }
 
     private void initFieldsList() {

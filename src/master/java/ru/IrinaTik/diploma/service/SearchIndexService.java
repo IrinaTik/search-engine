@@ -3,7 +3,6 @@ package ru.IrinaTik.diploma.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import ru.IrinaTik.diploma.entity.Lemma;
 import ru.IrinaTik.diploma.entity.Page;
 import ru.IrinaTik.diploma.entity.SearchIndex;
@@ -14,7 +13,6 @@ import java.util.Collection;
 import java.util.List;
 
 @Service
-@Transactional
 @RequiredArgsConstructor(onConstructor = @__(@Autowired))
 public class SearchIndexService {
 

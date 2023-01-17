@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 import ru.IrinaTik.diploma.entity.Lemma;
 import ru.IrinaTik.diploma.entity.Site;
 
@@ -20,6 +21,7 @@ public interface LemmaRepository extends JpaRepository<Lemma, Integer> {
     List<Lemma> findBySite(Site site);
 
     @Modifying
+    @Transactional
     void deleteBySite(Site site);
 
 }

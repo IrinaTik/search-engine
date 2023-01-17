@@ -5,7 +5,6 @@ import org.apache.lucene.morphology.LuceneMorphology;
 import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import ru.IrinaTik.diploma.entity.Lemma;
 import ru.IrinaTik.diploma.entity.Site;
 import ru.IrinaTik.diploma.repository.LemmaRepository;
@@ -15,7 +14,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-@Transactional
 @RequiredArgsConstructor(onConstructor = @__(@Autowired))
 public class LemmaService {
 

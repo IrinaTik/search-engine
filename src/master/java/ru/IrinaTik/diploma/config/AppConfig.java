@@ -11,9 +11,11 @@ import java.util.List;
 @Getter
 @Setter
 @Component
-@ConfigurationProperties(prefix = "sites")
-public class SiteList {
+@ConfigurationProperties(prefix = "config")
+public class AppConfig {
 
     private List<Site> siteList;
+    private String useragent;
+    private String referrer;
 
 }
