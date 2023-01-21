@@ -14,6 +14,7 @@ import ru.IrinaTik.diploma.entity.Site;
 import ru.IrinaTik.diploma.service.IndexingService;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.RecursiveAction;
 import java.util.stream.Collectors;
 
@@ -31,28 +32,18 @@ public class SiteParser extends RecursiveAction {
     private final IndexingService indexingService;
 
     @Getter
-    private final Set<Page> siteMap;
+    private final static Map<String, Set<Page>> siteMap = new HashMap<>();
 
     public SiteParser(Page page, Site site, IndexingService service) {
+        page.setSite(site);
         this.page = page;
         this.site = site;
-        page.setSite(site);
         this.indexingService = service;
-        this.siteMap = Collections.synchronizedSet(new HashSet<>());
-        setCancelled(false);
-    }
-
-    private SiteParser(Page page, Site site, IndexingService service, Set<Page> siteMap) {
-        this.page = page;
-        this.site = site;
-        page.setSite(site);
-        this.indexingService = service;
-        this.siteMap = siteMap;
     }
 
     @Override
     protected void compute() {
-        if (isCancelled) {
+        if (isCancelled || isVisitedLink(page.getAbsPath())) {
             return;
         }
         addPageToVisited();
@@ -63,7 +54,7 @@ public class SiteParser extends RecursiveAction {
                 if (isCancelled) {
                     return;
                 }
-                SiteParser parser = new SiteParser(childPage, site, indexingService, siteMap);
+                SiteParser parser = new SiteParser(childPage, site, indexingService);
                 parser.fork();
                 parsers.add(parser);
             }
@@ -71,10 +62,6 @@ public class SiteParser extends RecursiveAction {
                 parser.join();
             }
         }
-    }
-
-    private void addPageToVisited() {
-        siteMap.add(page);
     }
 
     public void parse() {
@@ -109,21 +96,48 @@ public class SiteParser extends RecursiveAction {
         Elements links = doc.select(CSS_QUERY);
         List<String> actualLinks = links.stream()
                 .map(linkCode -> linkCode.absUrl("href"))
-                .filter(link -> link.startsWith(page.getAbsPath()) && !link.equals(page.getAbsPath() + SCROLLUP_LINK))
+                .filter(this::isGoodLink)
                 .distinct()
-                .filter(link -> !isVisitedLink(link))
                 .collect(Collectors.toList());
         if (!actualLinks.isEmpty()) {
             page.setChildPages(actualLinks);
         }
     }
 
+    private boolean isGoodLink(String link) {
+        return link.startsWith(page.getAbsPath()) && !link.equals(page.getAbsPath() + SCROLLUP_LINK);
+    }
+
     public boolean isVisitedLink(String link) {
-        return siteMap.stream().anyMatch(page -> page.getAbsPath().equals(link));
+        return getSitePages(site).stream().anyMatch(page -> page.getAbsPath().equals(link));
+    }
+
+    private void addPageToVisited() {
+        getSitePages(site).add(page);
     }
 
     public static void stopParsing() {
         setCancelled(true);
+    }
+
+    public static Set<Page> getSitePages(Site site) {
+        return siteMap.get(site.getUrl());
+    }
+
+    public static void initSiteMap(Collection<Site> sites) {
+        prepareForParsing();
+        for (Site site : sites) {
+            initSiteMapEntry(site);
+        }
+    }
+
+    public static void prepareForParsing() {
+        setCancelled(false);
+        siteMap.clear();
+    }
+
+    public static void initSiteMapEntry(Site site) {
+        siteMap.put(site.getUrl(), new ConcurrentSkipListSet<>());
     }
 
 }

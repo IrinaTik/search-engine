@@ -59,6 +59,7 @@ public class IndexingService {
         }
         setCancelledStopIndexing(false);
         List<Site> sites = appConfig.getSiteList();
+        SiteParser.initSiteMap(sites);
         // каждый сайт должен быть в своем потоке
         executorThreadPool = Executors.newFixedThreadPool(sites.size());
         for (Site site : sites) {
@@ -102,10 +103,12 @@ public class IndexingService {
             SiteParser parser = new SiteParser(new Page(site.getUrl()), site, this);
             forkJoinPool.invoke(parser);
             if (isCancelledStopIndexing) {
+                forkJoinPool.shutdownNow();
                 return setResultAndSiteStatus(site, SiteIndexingStatus.FAILED, INDEXING_STOPPED_BY_USER_ERROR);
             }
-            if (getPageParsingError().isEmpty()) {
-                createLemmasAndIndexesForSite(site, parser.getSiteMap());
+            Set<Page> sitePages = SiteParser.getSitePages(site);
+            if (!sitePages.isEmpty() && sitePages.stream().anyMatch(Page::isPageResponseOK)) {
+                createLemmasAndIndexesForSite(site, sitePages);
                 if (isCancelledStopIndexing) {
                     result = setResultAndSiteStatus(site, SiteIndexingStatus.FAILED, INDEXING_STOPPED_BY_USER_ERROR);
                 } else {
@@ -114,8 +117,8 @@ public class IndexingService {
             } else {
                 result = setResultAndSiteStatus(site, SiteIndexingStatus.FAILED, getPageParsingError());
             }
-            parser.getSiteMap().stream().map(page -> "№" + page.getId() + " - код " + page.getCode() + ": " + page.getRelPath()).forEach(System.out::println);
-            System.out.println(parser.getSiteMap().size());
+            sitePages.stream().map(page -> "№" + page.getId() + " - код " + page.getCode() + ": " + page.getRelPath()).forEach(System.out::println);
+            System.out.println(sitePages.size());
             System.out.println(result);
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -140,6 +143,9 @@ public class IndexingService {
         Map<String, Lemma> siteLemmas = new HashMap<>();
         List<SearchIndex> siteIndexes = new ArrayList<>();
         for (Page page : siteMap) {
+            if (!page.isPageResponseOK()) {
+                continue;
+            }
             log.info("Getting lemmas and indexes for page {}", page.getAbsPath());
             Map<String, Float> pageLemmasWithRank = getLemmasFromPage(page);
             for (Map.Entry<String, Float> entry : pageLemmasWithRank.entrySet()) {

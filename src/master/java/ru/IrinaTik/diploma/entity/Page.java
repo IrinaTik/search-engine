@@ -12,7 +12,7 @@ import java.util.*;
 @Setter
 @Entity
 @Table(name = "pages", indexes = @Index(name = "path_idx", columnList = "path"))
-public class Page {
+public class Page implements Comparable<Page>{
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -83,6 +83,11 @@ public class Page {
 
     private String escapeEnd(String url) {
         return url.endsWith("/") ? url : url + "/";
+    }
+
+    @Override
+    public int compareTo(Page o) {
+        return this.getAbsPath().compareTo(o.getAbsPath());
     }
 
     @Override

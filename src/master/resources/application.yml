@@ -25,7 +25,7 @@ logging:
 
 config:
   sitelist:
-    - url: https://www.lenta.ru
+    - url: https://lenta.ru
       name: Лента.ру
     - url: https://skillbox.ru
       name: Skillbox
