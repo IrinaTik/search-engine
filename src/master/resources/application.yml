@@ -25,11 +25,13 @@ logging:
 
 config:
   sitelist:
-    - url: https://lenta.ru
-      name: Лента.ру
+    - url: https://mpei.ru
+      name: Национальный исследовательский университет МЭИ
+    - url: https://software-testing.ru
+      name: Портал о тестировании ПО
     - url: https://skillbox.ru
       name: Skillbox
-    - url: http://www.playback.ru
+    - url: http://playback.ru
       name: Playback
     - url: https://ipfran.ru
       name: Институт прикладной физики РАН

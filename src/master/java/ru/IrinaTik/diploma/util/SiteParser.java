@@ -2,6 +2,7 @@ package ru.IrinaTik.diploma.util;
 
 import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
 import org.jsoup.Connection;
@@ -11,6 +12,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
 import ru.IrinaTik.diploma.entity.Page;
 import ru.IrinaTik.diploma.entity.Site;
+import ru.IrinaTik.diploma.entity.SiteIndexingStatus;
 import ru.IrinaTik.diploma.service.IndexingService;
 
 import java.util.*;
@@ -43,7 +45,7 @@ public class SiteParser extends RecursiveAction {
 
     @Override
     protected void compute() {
-        if (isCancelled || isVisitedLink(page.getAbsPath())) {
+        if (isVisitedLink(page.getAbsPath())) {
             return;
         }
         addPageToVisited();
@@ -77,8 +79,8 @@ public class SiteParser extends RecursiveAction {
             Connection.Response response = connection.execute();
             page.setCode(response.statusCode());
             page.setContent(response.body());
-            Document doc = response.parse();
-            if (page.isPageResponseOK()) {
+            if (page.isPageResponseOK() && Objects.requireNonNull(response.contentType()).startsWith("text")) {
+                Document doc = response.parse();
                 parsePageLinks(doc);
             }
         } catch (HttpStatusException ex) {
@@ -86,7 +88,8 @@ public class SiteParser extends RecursiveAction {
         } catch (Exception ex) {
             ex.printStackTrace();
             log.error("Error while parsing page {} -> {}", page.getRelPath(), ex.getMessage());
-            indexingService.setPageParsingError("Ошибка при парсинге страницы " + page.getRelPath() + " -> " + ex.getMessage());
+            indexingService.setResultAndSiteStatus(site, SiteIndexingStatus.INDEXING,
+                    "Ошибка при парсинге страницы " + page.getRelPath() + " -> " + ex.getMessage());
         } finally {
             log.info("Parsing complete with code {} for page {}", page.getCode(), page.getAbsPath());
         }
